@@ -51,12 +51,23 @@ rules_shell_dependencies()
 rules_shell_toolchains()
 
 # Initialize hermetic C++
+tf_http_archive(
+    name = "rules_ml_toolchain",
+    sha256 = "e8de0234e0ce3d7ef203110b1f95f39989bf98b889eecebd1d33cc27689b1402",
+    strip_prefix = "rules_ml_toolchain-ffc81e7104ba20d9fe0f7e84d858a354601100f5",
+    urls = tf_mirror_urls(
+        "https://github.com/yuriivcs/rules_ml_toolchain/archive/ffc81e7104ba20d9fe0f7e84d858a354601100f5.tar.gz",
+    ),
+)
+
 load(
     "@rules_ml_toolchain//cc/deps:cc_toolchain_deps.bzl",
     "cc_toolchain_deps",
 )
 
 cc_toolchain_deps()
+
+register_toolchains("@rules_ml_toolchain//cc:darwin_aarch64_darwin_aarch64")
 
 register_toolchains("@rules_ml_toolchain//cc:linux_x86_64_linux_x86_64")
 
@@ -65,6 +76,8 @@ register_toolchains("@rules_ml_toolchain//cc:linux_x86_64_linux_x86_64_cuda")
 register_toolchains("@rules_ml_toolchain//cc:linux_aarch64_linux_aarch64")
 
 register_toolchains("@rules_ml_toolchain//cc:linux_aarch64_linux_aarch64_cuda")
+
+register_toolchains("@rules_ml_toolchain//cc:linux_x86_64_darwin_aarch64")
 
 # Initialize hermetic Python
 load("@xla//third_party/py:python_init_rules.bzl", "python_init_rules")
