@@ -13,8 +13,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef XLA_SERVICE_GPU_MODEL_BLOCK_LEVEL_PARAMETERS_H_
-#define XLA_SERVICE_GPU_MODEL_BLOCK_LEVEL_PARAMETERS_H_
+#ifndef XLA_CODEGEN_XTILE_BLOCK_LEVEL_PARAMETERS_H_
+#define XLA_CODEGEN_XTILE_BLOCK_LEVEL_PARAMETERS_H_
 
 #include <algorithm>
 #include <cstdint>
@@ -23,8 +23,7 @@ limitations under the License.
 #include "xla/codegen/xtile/xtile_config.pb.h"
 #include "xla/service/gpu/backend_configs.pb.h"
 
-namespace xla {
-namespace gpu {
+namespace xla::xtile {
 
 // A container for block-level parameters. Currently only used for Triton
 // fusions.
@@ -43,7 +42,7 @@ struct BlockLevelParameters {
 
   // Returns a BlockLevelParameters struct from a BlockLevelFusionConfig proto.
   static BlockLevelParameters FromBlockLevelFusionConfig(
-      const BlockLevelFusionConfig& config) {
+      const xla::xtile::BlockLevelFusionConfig& config) {
     BlockLevelParameters result;
     result.num_warps = config.num_warps();
     result.num_ctas = config.num_ctas();
@@ -62,8 +61,8 @@ struct BlockLevelParameters {
   }
 
   // Returns a BlockLevelFusionConfig proto from a BlockLevelParameters struct.
-  BlockLevelFusionConfig ToBlockLevelFusionConfig() const {
-    BlockLevelFusionConfig config;
+  xla::xtile::BlockLevelFusionConfig ToBlockLevelFusionConfig() const {
+    xla::xtile::BlockLevelFusionConfig config;
     for (const auto& tile_sizes : output_tile_sizes) {
       xla::xtile::Tile tile;
       tile.mutable_sizes()->Add(tile_sizes.begin(), tile_sizes.end());
@@ -82,7 +81,6 @@ struct BlockLevelParameters {
   }
 };
 
-}  // namespace gpu
-}  // namespace xla
+}  // namespace xla::xtile
 
-#endif  // XLA_SERVICE_GPU_MODEL_BLOCK_LEVEL_PARAMETERS_H_
+#endif  // XLA_CODEGEN_XTILE_BLOCK_LEVEL_PARAMETERS_H_
