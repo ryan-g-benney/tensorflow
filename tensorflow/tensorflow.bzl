@@ -1717,7 +1717,7 @@ def tf_gpu_cc_test(
             linkopts = linkopts,
             linkstatic = linkstatic,
             suffix = "_cpu",
-            tags = tags,
+            tags = [tag for tag in tags if not tag.startswith("requires-gpu-") and tag != "gpu"],
             deps = deps,
             **kwargs
         )
@@ -1781,36 +1781,12 @@ def tf_cuda_cc_test(*args, **kwargs):
 
 def tf_gpu_only_cc_test(
         name,
-        srcs = [],
-        deps = [],
         tags = [],
-        data = [],
-        size = "medium",
-        args = [],
-        kernels = [],
-        linkopts = [],
-        features = []):
-    tags = tags + tf_gpu_tests_tags()
-
-    gpu_lib_name = "%s%s" % (name, "_gpu_lib")
-    tf_gpu_kernel_library(
-        name = gpu_lib_name,
-        srcs = srcs + tf_binary_additional_srcs(),
-        data = tf_binary_additional_srcs(fullversion = True),
-        deps = deps,
-        testonly = 1,
-        features = features,
-    )
-    cc_test(
-        name = "%s%s" % (name, "_gpu"),
-        size = size,
-        args = args,
-        features = features + if_cuda(["-use_header_modules"]),
-        data = data + tf_binary_dynamic_kernel_dsos(),
-        deps = [":" + gpu_lib_name],
-        linkopts = if_not_windows(["-lpthread", "-lm"]) + linkopts + _rpath_linkopts(name),
-        tags = tags,
-        exec_properties = tf_exec_properties({"tags": tags}),
+        **kwargs):
+    tf_gpu_cc_test(
+        name = name,
+        tags = tags + ["gpu"],
+        **kwargs
     )
 
 # terminology changes: saving tf_cuda_* definition for compatibility
