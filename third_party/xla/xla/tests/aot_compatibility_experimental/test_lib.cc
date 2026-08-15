@@ -40,12 +40,16 @@ limitations under the License.
 namespace xla {
 namespace aot_compatibility_experimental {
 
-std::string GetExecutablesDirectory(absl::string_view target_name) {
+std::string GetExecutablesDirectory(absl::string_view target_name,
+                                    AOTTestPlatform platform) {
   // We use the full target name as part of the path, including backend (e.g.
-  // collective_ops_aot_test_2gpu)
+  // collective_ops_aot_test_2gpu). The platform selects the "gpu" or "cpu"
+  // executables subdirectory via the shared PlatformSubdir mapping.
   return tsl::io::JoinPath(
       tsl::testing::TensorFlowSrcRoot(),
-      "compiler/xla/tests/aot_compatibility_experimental/gpu/executables",
+      absl::StrCat("compiler/xla/tests/aot_compatibility_experimental/",
+                   AOTInterceptionPjrtClient::PlatformSubdir(platform),
+                   "/executables"),
       target_name);
 }
 
@@ -53,8 +57,8 @@ namespace {
 
 // Returns all available artifact versions sorted in ascending order.
 absl::StatusOr<std::vector<int32_t>> GetExecutableVersions(
-    absl::string_view target_name) {
-  std::string dir = GetExecutablesDirectory(target_name);
+    absl::string_view target_name, AOTTestPlatform platform) {
+  std::string dir = GetExecutablesDirectory(target_name, platform);
   std::vector<std::string> children;
   auto* env = tsl::Env::Default();
   ABSL_RETURN_IF_ERROR(env->GetChildren(dir, &children));
@@ -84,9 +88,10 @@ absl::StatusOr<std::vector<int32_t>> GetExecutableVersions(
 }  // namespace
 
 absl::StatusOr<std::vector<AotTestParam>>
-GetAotTestParamsForBackwardsCompatibility(absl::string_view target_name) {
+GetAotTestParamsForBackwardsCompatibility(absl::string_view target_name,
+                                          AOTTestPlatform platform) {
   ABSL_ASSIGN_OR_RETURN(std::vector<int32_t> versions,
-                   GetExecutableVersions(target_name));
+                   GetExecutableVersions(target_name, platform));
 
   if (std::getenv("XLA_AOT_TEST_ALL_VERSIONS") == nullptr &&
       versions.size() > 2) {
@@ -107,9 +112,10 @@ GetAotTestParamsForBackwardsCompatibility(absl::string_view target_name) {
 }
 
 absl::StatusOr<std::vector<AotTestParam>>
-GetAotTestParamsForGoldenFileVerification(absl::string_view target_name) {
+GetAotTestParamsForGoldenFileVerification(absl::string_view target_name,
+                                          AOTTestPlatform platform) {
   ABSL_ASSIGN_OR_RETURN(std::vector<int32_t> versions,
-                   GetExecutableVersions(target_name));
+                   GetExecutableVersions(target_name, platform));
   if (versions.empty()) {
     return absl::NotFoundError(
         absl::StrCat("No artifacts found for target: ", target_name));
@@ -126,6 +132,12 @@ AotCompatibilityTest::AotCompatibilityTest(AotTestParam param)
                 GetGlobalPjRtClientTestFactory().Get()();
             CHECK_OK(client.status())
                 << "Failed to create PjRt client. " << client.status();
+            absl::StatusOr<AOTTestPlatform> platform_or =
+                AOTInterceptionPjrtClient::PlatformFromName(
+                    (*client)->platform_name());
+            CHECK_OK(platform_or.status())
+                << "Failed to get platform: " << platform_or.status();
+            AOTTestPlatform platform = *platform_or;
             const ::testing::TestInfo* test_info =
                 ::testing::UnitTest::GetInstance()->current_test_info();
             std::string test_name = "";
@@ -138,10 +150,10 @@ AotCompatibilityTest::AotCompatibilityTest(AotTestParam param)
                 test_name = std::string(name_view);
               }
             }
-            std::string artifact_path =
-                tsl::io::JoinPath(GetExecutablesDirectory(param.target_name),
-                                  absl::StrCat("v", param.version),
-                                  absl::StrCat(test_name, ".pbtxt"));
+            std::string artifact_path = tsl::io::JoinPath(
+                GetExecutablesDirectory(param.target_name, platform),
+                absl::StrCat("v", param.version),
+                absl::StrCat(test_name, ".pbtxt"));
             return std::make_unique<AOTInterceptionPjrtClient>(
                 std::move(*client), param.mode, artifact_path);
           }(param),
