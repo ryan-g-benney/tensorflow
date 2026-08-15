@@ -16,11 +16,14 @@ limitations under the License.
 #include "tensorflow/compiler/tf2xla/xla_jit_compiled_cpu_function.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
+#include "absl/base/casts.h"
 #include "absl/status/status.h"
 #include "absl/types/span.h"
 #include "tensorflow/compiler/tf2xla/tf2xla.h"
@@ -33,19 +36,18 @@ limitations under the License.
 #include "xla/client/executable_build_options.h"
 #include "xla/client/local_client.h"
 #include "xla/hlo/builder/xla_computation.h"
+#include "xla/pjrt/pjrt_compiler.h"
+#include "xla/service/buffer_assignment.h"
 #include "xla/service/cpu/cpu_aot_compilation_result.h"
 #include "xla/service/cpu/cpu_executable.h"
 #include "xla/service/platform_util.h"
-#include "xla/shape_util.h"
+#include "xla/shape.h"
+#include "xla/status_macros.h"
 #include "xla/stream_executor/platform.h"
+#include "xla/tsl/platform/errors.h"
+#include "xla/tsl/platform/statusor.h"
 #include "xla/xla_data.pb.h"
 #include "tensorflow/core/framework/graph.pb.h"
-#include "tensorflow/core/lib/core/status.h"
-#include "tensorflow/core/platform/errors.h"
-#include "tensorflow/core/platform/macros.h"
-#include "tensorflow/core/platform/types.h"
-#include "tsl/platform/casts.h"
-#include "tsl/platform/statusor.h"
 
 namespace tensorflow {
 
@@ -112,9 +114,11 @@ XlaJitCompiledCpuFunction::Compile(
                       xla::PlatformUtil::GetPlatform(kHostPlatform));
   TF_ASSIGN_OR_RETURN(xla::LocalClient * client,
                       xla::ClientLibrary::GetOrCreateLocalClient(platform));
+  TF_ASSIGN_OR_RETURN(auto* compiler,
+                      xla::GetDefaultPjRtCompiler(xla::CpuName()));
   xla::XlaComputation computation;
-  TF_RETURN_IF_ERROR(tensorflow::ConvertGraphDefToXla(graph_def, config, client,
-                                                      &computation));
+  TF_RETURN_IF_ERROR(tensorflow::ConvertGraphDefToXla(graph_def, config,
+                                                      compiler, &computation));
 
   // Get and verify the program shape.
   TF_ASSIGN_OR_RETURN(std::unique_ptr<xla::ProgramShape> program_shape,

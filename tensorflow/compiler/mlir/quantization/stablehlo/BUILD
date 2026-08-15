@@ -404,9 +404,8 @@ tf_cc_test(
         "@llvm-project//llvm:Support",
         "@llvm-project//mlir:Pass",
         "@xla//xla:shape_util",
-        "@xla//xla/client:client_library",
-        "@xla//xla/stream_executor:platform",
-        "@xla//xla/stream_executor:platform_manager",
+        "@xla//xla/pjrt:pjrt_compiler",
+        "@xla//xla/pjrt/cpu:cpu_pjrt_compiler",
     ],
 )
 
