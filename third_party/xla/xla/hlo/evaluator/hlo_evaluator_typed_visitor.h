@@ -670,8 +670,13 @@ class HloEvaluatorTypedVisitor : public ConstDfsHloVisitorWithDefault {
           } else if constexpr (std::is_integral_v<ElementwiseT>) {
             if constexpr (std::is_signed_v<ElementwiseT>) {
               if (rhs_el < static_cast<ElementwiseT>(0)) {
-                return static_cast<ElementwiseT>(
-                    lhs_el == static_cast<ElementwiseT>(1) ? 1 : 0);
+                if (lhs_el == static_cast<ElementwiseT>(1)) {
+                  return static_cast<ElementwiseT>(1);
+                } else if (lhs_el == static_cast<ElementwiseT>(-1)) {
+                  return static_cast<ElementwiseT>(rhs_el % 2 == 0 ? 1 : -1);
+                } else {
+                  return static_cast<ElementwiseT>(0);
+                }
               }
             }
             return static_cast<ElementwiseT>(
@@ -1089,24 +1094,26 @@ class HloEvaluatorTypedVisitor : public ConstDfsHloVisitorWithDefault {
     std::optional<Literal> decompressed_rhs;
     const Literal* rhs_literal_ptr = &parent_->GetEvaluatedLiteralFor(rhs);
 
-    if (conv->sparsity_config().has_lhs() && lhs->shape().IsTuple()) {
-      ABSL_ASSIGN_OR_RETURN(
-          decompressed_lhs,
-          xla::MaterializeSparseOperand(LiteralSlice(*lhs_literal_ptr, {0}),
-                                        LiteralSlice(*lhs_literal_ptr, {1}),
-                                        conv->sparsity_config().lhs()));
+    if (conv->sparsity_config().has_lhs()) {
+      auto lhs_indices_op = conv->operand(conv->sparsity_config().lhs().idx());
+      const Literal* lhs_indices =
+          &parent_->GetEvaluatedLiteralFor(lhs_indices_op);
+      ABSL_ASSIGN_OR_RETURN(decompressed_lhs, xla::MaterializeSparseOperand(
+                                             *lhs_literal_ptr, *lhs_indices,
+                                             conv->sparsity_config().lhs()));
       lhs_literal_ptr = &decompressed_lhs.value();
       lhs_shape = lhs_literal_ptr->shape();
     } else {
       lhs_shape = GetShapeWithLayout(lhs->shape());
     }
 
-    if (conv->sparsity_config().has_rhs() && rhs->shape().IsTuple()) {
-      ABSL_ASSIGN_OR_RETURN(
-          decompressed_rhs,
-          xla::MaterializeSparseOperand(LiteralSlice(*rhs_literal_ptr, {0}),
-                                        LiteralSlice(*rhs_literal_ptr, {1}),
-                                        conv->sparsity_config().rhs()));
+    if (conv->sparsity_config().has_rhs()) {
+      auto rhs_indices_op = conv->operand(conv->sparsity_config().rhs().idx());
+      const Literal* rhs_indices =
+          &parent_->GetEvaluatedLiteralFor(rhs_indices_op);
+      ABSL_ASSIGN_OR_RETURN(decompressed_rhs, xla::MaterializeSparseOperand(
+                                             *rhs_literal_ptr, *rhs_indices,
+                                             conv->sparsity_config().rhs()));
       rhs_literal_ptr = &decompressed_rhs.value();
       rhs_shape = rhs_literal_ptr->shape();
     } else {
