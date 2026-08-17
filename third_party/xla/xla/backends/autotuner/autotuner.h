@@ -17,6 +17,7 @@ limitations under the License.
 #define XLA_BACKENDS_AUTOTUNER_AUTOTUNER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -27,6 +28,8 @@ limitations under the License.
 #include "absl/synchronization/mutex.h"
 #include "absl/types/span.h"
 #include "xla/autotune_results.pb.h"
+#include "xla/backends/autotuner/autotuner_cache_interface.h"
+#include "xla/backends/autotuner/autotuning.pb.h"
 #include "xla/backends/autotuner/codegen_orchestrator.h"
 #include "xla/backends/autotuner/config_runner.h"
 #include "xla/backends/autotuner/hlo_extractor.h"
@@ -46,6 +49,9 @@ class Autotuner {
     int scratch_bytes_window_size_us = 2;
     ConfigRunner::CorrectnessCheckOptions correctness_check_options;
     std::string dump_logs_to = "";
+    bool use_new_logging_format = false;
+    // Used for dumping raw profiles which can be used to build cache.
+    std::optional<AutotuneCacheContext> cache_context = std::nullopt;
   };
 
   using Config = CodegenOrchestrator::Config;
@@ -100,6 +106,12 @@ class Autotuner {
 
   mutable absl::Mutex logs_mutex_;
   mutable AutotuningLogs logs_ ABSL_GUARDED_BY(logs_mutex_);
+  mutable autotuner::AllRawConfigProfiles raw_profiles_
+      ABSL_GUARDED_BY(logs_mutex_);
+
+  mutable absl::Mutex runner_mu_;
+  mutable int next_runner_index_ ABSL_GUARDED_BY(runner_mu_) = 0;
+  int GetNextRunnerIndex() const;
 };
 
 }  // namespace xla
