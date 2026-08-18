@@ -41,7 +41,7 @@ limitations under the License.
 #include "xla/hlo/ir/replica_group.h"
 #include "xla/runtime/device_id.h"
 #include "xla/service/collective_ops_utils.h"
-#include "xla/service/computation_placer.h"
+#include "xla/service/device_assignment.h"
 #include "xla/service/gpu/backend_configs.pb.h"
 #include "xla/service/hlo_module_config.h"
 #include "xla/side_effect_util.h"
@@ -380,9 +380,11 @@ absl::StatusOr<absl::flat_hash_set<HloOpcode>> OpcodesForTritonCollectives(
   for (auto collective :
        debug_options.xla_gpu_experimental_use_collective_kernels()) {
     switch (collective) {
-      case xla::DebugOptions::COLLECTIVE_KERNEL_ALL_REDUCE:
+      case xla::DebugOptions::COLLECTIVE_KERNEL_ALL_REDUCE: {
         instructions_to_annotate.insert(HloOpcode::kAllReduce);
+        instructions_to_annotate.insert(HloOpcode::kAllReduceStart);
         break;
+      }
       case xla::DebugOptions::COLLECTIVE_KERNEL_ALL_GATHER:
         instructions_to_annotate.insert(HloOpcode::kAllGather);
         break;
