@@ -47,6 +47,14 @@ absl::StatusOr<const CpuTopologyDescription*> GetCpuTopology(
   return &absl::down_cast<const xla::CpuTopologyDescription&>(topology);
 }
 
+PjRtCpuRawClient* GetRawClient(PjRtClient* client) {
+  auto* common_client = dynamic_cast<CommonPjRtClient*>(client);
+  if (!common_client) {
+    return nullptr;
+  }
+  return dynamic_cast<PjRtCpuRawClient*>(common_client->raw_client());
+}
+
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<PjRtExecutable>> CpuPjRtCompiler::Compile(
@@ -54,6 +62,10 @@ absl::StatusOr<std::unique_ptr<PjRtExecutable>> CpuPjRtCompiler::Compile(
     const PjRtTopologyDescription& topology, PjRtClient* client) {
   ABSL_ASSIGN_OR_RETURN(const CpuTopologyDescription* cpu_topology,
                    GetCpuTopology(topology));
+  if (auto* raw_client = GetRawClient(client)) {
+    return raw_client->Compile(computation, *cpu_topology,
+                               client->process_index(), std::move(options));
+  }
 
   ABSL_ASSIGN_OR_RETURN(
       auto executable,
@@ -66,6 +78,10 @@ absl::StatusOr<std::unique_ptr<PjRtExecutable>> CpuPjRtCompiler::Compile(
     const PjRtTopologyDescription& topology, PjRtClient* client) {
   ABSL_ASSIGN_OR_RETURN(const CpuTopologyDescription* cpu_topology,
                    GetCpuTopology(topology));
+  if (auto* raw_client = GetRawClient(client)) {
+    return raw_client->Compile(std::move(module), *cpu_topology,
+                               client->process_index(), std::move(options));
+  }
 
   ABSL_ASSIGN_OR_RETURN(auto executable,
                    CompileCpuExecutable(std::move(module), std::move(options),

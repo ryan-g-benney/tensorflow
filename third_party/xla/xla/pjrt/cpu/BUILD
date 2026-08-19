@@ -194,8 +194,14 @@ cc_library(
 
 cc_library(
     name = "cpu_client",
-    srcs = ["cpu_client.cc"],
-    hdrs = ["cpu_client.h"],
+    srcs = [
+        "cpu_client.cc",
+        "cpu_pjrt_compiler.cc",
+    ],
+    hdrs = [
+        "cpu_client.h",
+        "cpu_pjrt_compiler.h",
+    ],
     visibility = internal_visibility(["//xla/pjrt/cpu:legacy_cpu_client_users"]),
     deps = [
         ":abstract_cpu_buffer",
@@ -271,6 +277,7 @@ cc_library(
         "//xla/service/cpu:executable_proto_cc",
         "//xla/service/llvm_ir:llvm_command_line_options",
         "//xla/stream_executor:device_address",
+        "//xla/stream_executor/platform:initialize",
         "//xla/tsl/concurrency:async_value",
         "//xla/tsl/concurrency:ref_count",
         "//xla/tsl/lib/strings:proto_serialization",
@@ -378,7 +385,7 @@ cc_library(
 
 cc_library(
     name = "cpu_pjrt_compiler",
-    srcs = ["cpu_pjrt_compiler.cc"],
+    srcs = [],
     hdrs = ["cpu_pjrt_compiler.h"],
     visibility = internal_visibility(["//xla/pjrt/cpu:legacy_cpu_client_users"]),
     deps = [
