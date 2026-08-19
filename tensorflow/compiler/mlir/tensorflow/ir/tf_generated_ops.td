@@ -6449,7 +6449,8 @@ indices.shape[batch_dims:] + params.shape[axis + 1:]` where:
 
 Note that on CPU, if an out of bound index is found, an error is returned.
 On GPU, if an out of bound index is found, a 0 is stored in the
-corresponding output value.
+corresponding output value. Under XLA compilation (e.g. `tf.function(jit_compile=True)`),
+out of bound indices are not checked and result in implementation-defined behavior.
 
 Note that on TPU, if any dimension of `params` is of size 0 then the output will
 be the expected shape filled with zeros. On CPU and GPU an error will be
@@ -12983,7 +12984,7 @@ def TF_RemoteCallOp : TF_Op<"RemoteCall", [CallOpInterface]> {
 
     /// Set the callee for this operation.
     void setCalleeFromCallable(CallInterfaceCallable callee) {
-      (*this)->setAttr("f", callee.get<SymbolRefAttr>());
+      (*this)->setAttr("f", ::llvm::cast<SymbolRefAttr>(callee));
     }
     Attribute removeArgAttrsAttr() { return nullptr; }
     Attribute removeResAttrsAttr() { return nullptr; }
