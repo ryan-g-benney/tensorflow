@@ -20,6 +20,8 @@ limitations under the License.
 #include "tensorflow/core/kernels/topk_op.h"
 
 #include <algorithm>
+#include <limits>
+#include <memory>
 #include <numeric>
 #include <vector>
 
@@ -152,8 +154,10 @@ struct TopKFunctor<CPUDevice, T, Tidx> {
       // Get the indices of the maximum values.
       for (int r = 0; r < num_rows; ++r) {
         indices(r, 0) = Tidx(0);
+        const bool val_is_nan = Eigen::numext::isnan(values(r, 0));
         for (int c = 0; c < num_cols; ++c) {
-          if (values(r, 0) == input(r, c)) {
+          if ((val_is_nan && Eigen::numext::isnan(input(r, c))) ||
+              values(r, 0) == input(r, c)) {
             indices(r, 0) = static_cast<Tidx>(c);
             break;
           }
@@ -169,6 +173,14 @@ struct TopKFunctor<CPUDevice, T, Tidx> {
         const T* input_data = &input(b, 0);
         const auto stable_comp = [input_data](const int32_t a,
                                               const int32_t b) {
+          const bool a_nan = Eigen::numext::isnan(input_data[a]);
+          const bool b_nan = Eigen::numext::isnan(input_data[b]);
+          if (a_nan || b_nan) {
+            if (a_nan && b_nan) {
+              return a < b;
+            }
+            return a_nan;
+          }
           if (input_data[b] < input_data[a]) {
             return true;
           } else if (input_data[b] > input_data[a]) {
@@ -178,6 +190,11 @@ struct TopKFunctor<CPUDevice, T, Tidx> {
           }
         };
         const auto comp = [input_data](const int32_t a, const int32_t b) {
+          const bool a_nan = Eigen::numext::isnan(input_data[a]);
+          const bool b_nan = Eigen::numext::isnan(input_data[b]);
+          if (a_nan || b_nan) {
+            return a_nan && !b_nan;
+          }
           return input_data[b] < input_data[a];
         };
         // TODO(ebrevdo): For large k < num_cols, instead of using
@@ -199,9 +216,17 @@ struct TopKFunctor<CPUDevice, T, Tidx> {
           for (auto* run_begin = begin; run_begin != end;) {
             auto* run_end = run_begin + 1;
             if (run_end == end) break;
-            if (input_data[*run_begin] == input_data[*run_end]) {
+            const bool run_begin_nan =
+                Eigen::numext::isnan(input_data[*run_begin]);
+            if ((run_begin_nan && Eigen::numext::isnan(input_data[*run_end])) ||
+                (!run_begin_nan &&
+                 input_data[*run_begin] == input_data[*run_end])) {
               while (++run_end != end) {
-                if (input_data[*run_begin] != input_data[*run_end]) break;
+                if (run_begin_nan) {
+                  if (!Eigen::numext::isnan(input_data[*run_end])) break;
+                } else {
+                  if (input_data[*run_begin] != input_data[*run_end]) break;
+                }
               }
               std::sort(run_begin, run_end);
             }
