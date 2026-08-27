@@ -29,6 +29,16 @@ namespace tensorflow {
 // This pass clears the `_lower_using_switch_merge` attribute on functional
 // control flow nodes whenever global JIT is enabled, so auto-clustering skips
 // the lowering the same way jit_compile=True already does.
+//
+// The attribute is only cleared for nodes that XLA can compile on every
+// candidate device (checked with RecursiveCompilabilityChecker, using the
+// same operation filter as MarkForCompilationPass). Ops that auto-clustering
+// would reject anyway — e.g. loop bodies containing ops without XLA kernels,
+// tf.data ops, or resource accesses in multi-device training — keep the
+// attribute and are lowered by LowerFunctionalOpsPass as before. Skipping
+// the lowering for those would leave a functional op that can fail placement
+// when resource or reference edges span devices (as seen with parameter
+// server training).
 class DisableFunctionalOpsLoweringForXlaPass : public GraphOptimizationPass {
  public:
   DisableFunctionalOpsLoweringForXlaPass() = default;
